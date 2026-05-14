@@ -1,190 +1,100 @@
 # semantic-search-cache
-# Semantic Search Cache System
 
-## Overview
+Lightweight semantic retrieval cache built with `FastAPI`, embedding-based similarity search, fuzzy clustering, and a reusable cache layer for repeated queries.
 
-This project implements a **semantic caching system for natural language queries**.
-Instead of recomputing responses for similar queries, the system stores previous query embeddings and retrieves cached results when semantically similar queries are detected.
+## What It Does
 
-This significantly **reduces response time and computation cost** for repeated or similar queries.
+This project sits in front of a vector-search flow and checks whether an incoming query is semantically close enough to a previous one to reuse the earlier result.
 
-The system uses **vector embeddings, cosine similarity, and clustering techniques** to determine cache hits.
+If the query is similar:
 
----
+- return a cache hit
+- surface the matched historical query
+- include the similarity score and dominant cluster
 
-# System Architecture
+If the query is new:
 
-Query → Embedding Generator → Vector Database
-→ Similarity Search → Cache Hit / Miss
-→ Response Retrieval or Generation
+- run vector search
+- infer the dominant cluster
+- store the result for future reuse
 
-Components work together to determine whether a new query is similar enough to an existing query in the cache.
+## Flow
 
----
-
-# Project Structure
-
-```
-semantic-search-cache/
-│
-├── api/
-│   └── main.py                # FastAPI application and API endpoints
-│
-├── cache/
-│   └── semantic_cache.py      # Core semantic caching logic
-│
-├── clustering/
-│   └── fuzzy_cluster.py       # Fuzzy clustering for grouping similar queries
-│
-├── data/
-│   └── dataset_loader.py      # Loads and processes dataset
-│
-├── embeddings/
-│   └── embedder.py            # Generates sentence embeddings
-│
-├── vector_store/
-│   └── vectordb.py            # Vector database operations using FAISS
-│
-├── Dockerfile                 # Docker configuration
-├── requirements.txt           # Python dependencies
-├── .dockerignore
-└── README.md
+```mermaid
+flowchart LR
+    A["Incoming query"] --> B["Embed query"]
+    B --> C["Semantic cache lookup"]
+    C -->|Hit| D["Return cached result + similarity + cluster"]
+    C -->|Miss| E["Vector DB search"]
+    E --> F["Cluster assignment"]
+    F --> G["Store in cache"]
+    G --> H["Return fresh result"]
 ```
 
----
+## Stack
 
-# Key Features
+- `FastAPI` for the API surface
+- embedding model wrapper for document and query vectors
+- vector database for nearest-neighbor search
+- fuzzy clustering for dominant-cluster tagging
+- semantic cache with similarity-threshold matching
 
-* Semantic similarity detection using **Sentence Transformers**
-* Fast vector search with **FAISS**
-* Cache hit detection using **cosine similarity**
-* Query clustering using **fuzzy clustering**
-* REST API built with **FastAPI**
-* Fully **Dockerized for easy deployment**
+## API
 
----
-
-# Technologies Used
-
-* Python
-* FastAPI
-* Sentence Transformers
-* FAISS (Facebook AI Similarity Search)
-* NumPy
-* Scikit-learn
-* Docker
-
----
-
-# API Endpoint
-
-### Query Endpoint
-
-```
-POST /query
-```
-
-### Request Body
+### `POST /query`
 
 ```json
 {
-  "query": "computer graphics rendering"
+  "query": "find customers with rising spend variance"
 }
 ```
 
-### Example Response
+Returns:
 
-```json
-{
-  "query": "computer graphics rendering",
-  "cache_hit": true,
-  "matched_query": "computer graphics rendering",
-  "similarity_score": 1.0,
-  "result": "cached response",
-  "dominant_cluster": 1
-}
-```
+- whether the request was a cache hit
+- the matched prior query if one exists
+- similarity score
+- nearest search result
+- dominant cluster
 
----
+### `GET /cache/stats`
 
-# Running the Project Locally
+Returns current cache statistics.
 
-## 1 Install Dependencies
+### `DELETE /cache`
 
-```
+Clears the semantic cache.
+
+## Project Layout
+
+| Path | Purpose |
+| --- | --- |
+| `api/main.py` | FastAPI app and request routing |
+| `embeddings/embedder.py` | Query/document embedding generation |
+| `vector_store/` | Vector database implementation |
+| `clustering/` | Fuzzy clustering logic |
+| `cache/` | Semantic cache implementation |
+| `data/` | Dataset loading utilities |
+
+## Run Locally
+
+```bash
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-## 2 Run API Server
-
-```
 uvicorn api.main:app --reload
 ```
 
-Server will start at:
+Then open:
 
-```
-http://127.0.0.1:8000
-```
-
-Swagger documentation is available at:
-
-```
+```text
 http://127.0.0.1:8000/docs
 ```
 
----
+## Why It Matters
 
-# Running with Docker
+This repo is a nice entry point into the kind of infrastructure work I enjoy:
 
-## Build the Docker Image
-
-```
-docker build -t semantic-search-api .
-```
-
-## Run the Container
-
-```
-docker run -p 8000:8000 semantic-search-api
-```
-
-The API will be available at:
-
-```
-http://localhost:8000
-```
-
----
-
-# How the Semantic Cache Works
-
-1. A user query is received via the API.
-2. The query is converted into a vector embedding.
-3. The embedding is compared against cached embeddings using cosine similarity.
-4. If similarity exceeds a defined threshold:
-
-   * Cache hit occurs
-   * Cached result is returned.
-5. If not:
-
-   * A new response is generated
-   * Query and embedding are stored in cache.
-
----
-
-# Future Improvements
-
-* Persistent vector database storage
-* Redis integration for distributed caching
-* GPU acceleration for embedding generation
-* Adaptive similarity thresholding
-* Query analytics dashboard
-
----
-
-# Author
-
-Sai Aravind Sannidhanam
-Computer Science (AI & Robotics)
-Vellore Institute of Technology, Chennai
+- reducing repeated compute
+- making search systems feel faster
+- building smarter retrieval paths instead of just bigger ones
